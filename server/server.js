@@ -9,10 +9,11 @@ const helmet = require('helmet');
 const fs = require('fs');
 const path = require('path');
 const persianDate = require('persian-date');
+const Joi = require('joi');
 
 const {authenticate} = require('./middleware/authenticate');
 const {User} = require('./model/user');
-const {splitDate,printRunLevel} = require('./utils/utils');
+const {splitDate,printRunLevel,handleError,handleMessage,handleUserValidate} = require('./utils/utils');
 const {logger} = require('./utils/winston');
 
 printRunLevel(config.get('level'));
@@ -38,9 +39,7 @@ app.post('/api/users',async (req,res)=>{
             await user.save();
             res.status(200).send(user);
       }catch (e){
-            res.status(400).json({
-                  Error: `خطایی رخ داده است ${err}`
-            })
+            handleError(res,e)
       }
 });
 
@@ -54,14 +53,24 @@ app.post('/api/login', async (req, res) => {
             .status(200)
             .send(token);
     } catch (e) {
-        res.status(400).json({
-            Error: `خطایی رخ داده است! ${e}`
-        });
+        handleError(res,e)
     }
 });
 
 app.post('/api/payments',authenticate,async (req,res)=>{
+
       try{
+            const paymentsJoiSchema ={
+                  info: Joi.string().min(3).required(),
+                  amount: Joi.number().min(1).required()
+            }
+
+            let validatResult= Joi.validate(req.body,paymentsJoiSchema);
+
+            if(validatResult.error){
+                  handleError(res,validatResult.error)     ;
+                  return;
+            }
             const body = _.pick(req.body,['info','amount']);
             let user = await User.findOneAndUpdate({
                   _id: req.user._id
@@ -74,19 +83,14 @@ app.post('/api/payments',authenticate,async (req,res)=>{
                         }
                   }
             });
-            if(!user){
-                  return res.status(404).json({
-                        Error: 'کاربر یافت نشد'
-                  })
-            }
-            res.status(200).json({
-                  Message:'هزینه ذخیره شد'
-            })
+
+            handleUserValidate(user,res);
+
+            handleMessage(res,'هزینه ذخیره شد')
+            
 
       }catch(e){
-            res.status(400).json({
-                  Error:`خطایی رخ داده است ${e}`
-            })
+            handleError(res,e)
       }
 });
 
@@ -95,18 +99,12 @@ app.get('/api/payments',authenticate,async (req,res)=>{
             let user = await User.findOne({
                   _id:req.user._id
             })
-            if(!user){
-                  return res.status(404).json({
-                        Error: 'کاربر یافت نشد'
-                  })
-            }
+            handleUserValidate(user,res)
             res.status(200).send(user.payments)
 
 
       }catch (e){
-            res.status(400).json({
-                  Error:`خطایی رخ داده است. ${e}`
-            })
+            handleError(res,e)
       }
 });
 
@@ -124,17 +122,13 @@ app.delete('/api/payments/:id',authenticate, async (req, res)=>{
                         }
                   }
             });
-            if(!user){
-                  return res.status(404).json({
-                        Error: 'کاربر یافت نشد'
-                  })
-            }
-            res.status(200).send(user.payments)
+
+            handleUserValidate(user,res);
+
+            res.status(200).send(user.payments);
 
       }catch (e){
-            res.status(400).json({
-                  Error:`خطایی رخ داده است. ${e}`
-            })
+            handleError(res,e)
       }
 });
 
@@ -154,20 +148,13 @@ app.patch('/api/payments/',authenticate,async (req,res)=>{
                   }
             });
 
-            if(!user){
-                  return res.status(404).json({
-                        Error: 'کاربر یافت نشد'
-                  })
-            }
-            res.status(200).json({
-                  Message:'هزینه آپدیت شد'
-            })
+            handleUserValidate(user,res);
+
+            handleMessage(res,'هزینه آپدیت شد');
 
             
       }catch (e){
-            res.status(400).json({
-                  Error:`خطایی رخ داده است. ${e}`
-            })
+            handleError(res,e)
       }
 })
 
@@ -181,11 +168,7 @@ app.get('/api/paymentSum', authenticate, async (req, res) => {
             _id: req.user._id
         });
 
-        if (!user) {
-            return res.status(404).json({
-                Error: 'User not found'
-            });
-        }
+        handleUserValidate(user,res);
 
         user.payments.forEach((element) => {
             splitArr = splitDate(element.date);
@@ -197,13 +180,10 @@ app.get('/api/paymentSum', authenticate, async (req, res) => {
             }
         });
 
-        res.status(200).json({
-            Sum: `${_.sum(amount)}`
-        });
+            handleMessage(res,`جمع هزینه ها ${_.sum(amount)}`);
+
     } catch (e) {
-        res.status(400).json({
-            Error: `Something went wrong. ${e}`
-        });
+       handleError(res,e)
     }
 });
 
@@ -218,11 +198,7 @@ app.get('/api/payment/:date',authenticate, async (req, res)=>{
 
             let payments=[];
 
-            if (!user) {
-                  return res.status(404).json({
-                  Error: 'User not found'
-                  });
-            }
+            handleUserValidate(user,res);
 
             user.payments.forEach((el)=>{
                   if ( el.date === date ){
@@ -233,22 +209,18 @@ app.get('/api/payment/:date',authenticate, async (req, res)=>{
             res.status(200).send(payments);
 
       }catch (e){
-            res.status(400).json({
-            Error: `Something went wrong. ${e}`
-        }); 
+            handleError(res,e)
       }
 });
 
 app.delete('/api/logout', authenticate, async (req, res) => {
     try {
         await req.user.removeToken(req.token);
-        res.status(200).json({
-            Message: 'Logout successfull.'
-        });
+        
+        handleMessage(res,`خروج با موفقیت انجام شد`);
+
     } catch (e) {
-        res.status(400).json({
-            Error: `Something went wrong. ${e}`
-        });
+        handleError(res,e)
     }
 });
 
