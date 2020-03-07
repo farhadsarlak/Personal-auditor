@@ -6,24 +6,20 @@ const express= require('express');
 const _ = require('lodash');
 const morgan = require('morgan');
 const helmet = require('helmet');
-const winston = require('winston');
 const fs = require('fs');
 const path = require('path');
 const persianDate = require('persian-date');
 
 const {authenticate} = require('./middleware/authenticate');
 const {User} = require('./model/user');
+const {splitDate,printRunLevel} = require('./utils/utils');
+const {logger} = require('./utils/winston');
 
-console.log(`*** LEVEL:${String(config.get('level'))} ***`);
+printRunLevel(config.get('level'));
 
 const app = express();
 const requestLogger = fs.createWriteStream(path.join(__dirname,'log/requests.log'));
-const logger = winston.createLogger({
-      transports: [
-            new winston.transports.Console(),
-            new winston.transports.File({filename: path.join(__dirname,'log/server-status.log')})
-      ]
-})
+
 
 persianDate.toLocale('en');
 const date =new persianDate().format('YYYY/M/DD');
@@ -175,6 +171,73 @@ app.patch('/api/payments/',authenticate,async (req,res)=>{
       }
 })
 
+
+app.get('/api/paymentSum', authenticate, async (req, res) => {
+    let amount = [];
+    let theDate;
+
+    try {
+        let user = await User.findOne({
+            _id: req.user._id
+        });
+
+        if (!user) {
+            return res.status(404).json({
+                Error: 'User not found'
+            });
+        }
+
+        user.payments.forEach((element) => {
+            splitArr = splitDate(element.date);
+            theDate = new persianDate([Number(splitArr[0]), Number(splitArr[1]), Number(splitArr[2])]);
+            todayDate = new persianDate();
+
+            if (theDate.isSameMonth(todayDate)) {
+                amount.push(element.amount);
+            }
+        });
+
+        res.status(200).json({
+            Sum: `${_.sum(amount)}`
+        });
+    } catch (e) {
+        res.status(400).json({
+            Error: `Something went wrong. ${e}`
+        });
+    }
+});
+
+app.get('/api/payment/:date',authenticate, async (req, res)=>{
+      let param = req.params.date;
+      let date = param.replaceAll('-','/');
+
+      try {
+            let user = await User.findOne({
+                  _id: req.user._id
+            });
+
+            let payments=[];
+
+            if (!user) {
+                  return res.status(404).json({
+                  Error: 'User not found'
+                  });
+            }
+
+            user.payments.forEach((el)=>{
+                  if ( el.date === date ){
+                        payments.push(el);
+                  }
+            });
+
+            res.status(200).send(payments);
+
+      }catch (e){
+            res.status(400).json({
+            Error: `Something went wrong. ${e}`
+        }); 
+      }
+});
 
 
 app.listen(config.get('PORT'),() => {
