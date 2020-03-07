@@ -1,4 +1,0 @@
-::1 - - [07/Mar/2020:14:09:08 +0000] "GET /api/payment/1398/10/20 HTTP/1.1" 404 161 "-" "PostmanRuntime/7.20.1"
-::1 - - [07/Mar/2020:14:09:16 +0000] "GET /api/payment/1398-10-20 HTTP/1.1" 200 88 "-" "PostmanRuntime/7.20.1"
-::1 - - [07/Mar/2020:14:09:33 +0000] "GET /api/payment/1398-12-20 HTTP/1.1" 200 2 "-" "PostmanRuntime/7.20.1"
-::1 - - [07/Mar/2020:14:09:43 +0000] "GET /api/payment/1398-12-17 HTTP/1.1" 200 184 "-" "PostmanRuntime/7.20.1"

@@ -239,6 +239,18 @@ app.get('/api/payment/:date',authenticate, async (req, res)=>{
       }
 });
 
+app.delete('/api/logout', authenticate, async (req, res) => {
+    try {
+        await req.user.removeToken(req.token);
+        res.status(200).json({
+            Message: 'Logout successfull.'
+        });
+    } catch (e) {
+        res.status(400).json({
+            Error: `Something went wrong. ${e}`
+        });
+    }
+});
 
 app.listen(config.get('PORT'),() => {
       logger.log({
