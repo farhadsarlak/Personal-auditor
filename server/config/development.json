@@ -1,5 +1,6 @@
 {
       "level" : "development",
       "PORT":3000,
-      "MONGOURI":"mongodb://localhost:27017/PA_DB"
+      "MONGOURI":"mongodb://localhost:27017/PA_DB",
+      "JWT_SECRET":"F@rhad_1364"
 }
