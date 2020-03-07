@@ -64,14 +64,14 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-app.post('/api/payment',authenticate,async (req,res)=>{
+app.post('/api/payments',authenticate,async (req,res)=>{
       try{
             const body = _.pick(req.body,['info','amount']);
             let user = await User.findOneAndUpdate({
                   _id: req.user._id
             },{
                   $push:{
-                        payment:{
+                        payments:{
                               info:body.info,
                               amount:body.amount,
                               date
@@ -92,7 +92,90 @@ app.post('/api/payment',authenticate,async (req,res)=>{
                   Error:`خطایی رخ داده است ${e}`
             })
       }
+});
+
+app.get('/api/payments',authenticate,async (req,res)=>{
+      try{
+            let user = await User.findOne({
+                  _id:req.user._id
+            })
+            if(!user){
+                  return res.status(404).json({
+                        Error: 'کاربر یافت نشد'
+                  })
+            }
+            res.status(200).send(user.payments)
+
+
+      }catch (e){
+            res.status(400).json({
+                  Error:`خطایی رخ داده است. ${e}`
+            })
+      }
+});
+
+app.delete('/api/payments/:id',authenticate, async (req, res)=>{
+      let id = req.params.id;
+
+      try{
+            let user = await User.findOneAndUpdate({
+                  _id: req.user._id,
+                  'payments._id':id
+            },{
+                  $pull:{
+                        payments:{
+                              _id:id
+                        }
+                  }
+            });
+            if(!user){
+                  return res.status(404).json({
+                        Error: 'کاربر یافت نشد'
+                  })
+            }
+            res.status(200).send(user.payments)
+
+      }catch (e){
+            res.status(400).json({
+                  Error:`خطایی رخ داده است. ${e}`
+            })
+      }
+});
+
+app.patch('/api/payments/',authenticate,async (req,res)=>{
+      let body = _.pick (req.body,['id','info','amount','date']);
+
+      try{
+            let user = await User.findOneAndUpdate({
+                  _id : req.user._id,
+                  'payments._id': body.id
+            },{
+                  $set:{
+                        'payments.$.info': body.info,
+                        'payments.$.amount': body.amount,
+                        'payments.$.date': body.date,
+                        
+                  }
+            });
+
+            if(!user){
+                  return res.status(404).json({
+                        Error: 'کاربر یافت نشد'
+                  })
+            }
+            res.status(200).json({
+                  Message:'هزینه آپدیت شد'
+            })
+
+            
+      }catch (e){
+            res.status(400).json({
+                  Error:`خطایی رخ داده است. ${e}`
+            })
+      }
 })
+
+
 
 app.listen(config.get('PORT'),() => {
       logger.log({
